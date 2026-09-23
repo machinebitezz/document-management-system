@@ -118,6 +118,26 @@ test('valida configuração numérica no startup', () => {
   assert.equal(loadConfig({ MAX_FILE_SIZE: '2048' }).maxFileSize, 2048);
 });
 
+test('lista vazia quando o usuário não possui documentos', async () => {
+  await withTestServer({}, async ({ baseUrl }) => {
+    const listResponse = await fetch(`${baseUrl}/documents`, {
+      headers: { 'X-User-Id': 'user-sem-documentos' },
+    });
+    assert.equal(listResponse.status, 200);
+    const { documents } = await listResponse.json();
+    assert.deepEqual(documents, []);
+  });
+});
+
+test('retorna 404 ao baixar documento inexistente', async () => {
+  await withTestServer({}, async ({ baseUrl }) => {
+    const downloadResponse = await fetch(`${baseUrl}/documents/id-inexistente/download`, {
+      headers: { 'X-User-Id': 'user-1' },
+    });
+    assert.equal(downloadResponse.status, 404);
+  });
+});
+
 test('aplica allowlist de MIME e limite de frequência configuráveis', async () => {
   await withTestServer({
     allowedMimeTypes: new Set(['application/pdf']),
