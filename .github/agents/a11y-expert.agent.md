@@ -1,5 +1,5 @@
 ---
-description: Agente de verificaçao e correção de problemas de acessibilidade em frontend.
+description: Agente de verificação e correção de problemas de acessibilidade em frontend.
 name: a11y-expert
 tools: ['search', 'codebase', 'usages']
 handoffs:

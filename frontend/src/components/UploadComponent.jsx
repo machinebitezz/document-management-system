@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { uploadDocument } from '../services/documentApi.js';
 
-export default function UploadComponent({ owner, onUploaded }) {
+export default function UploadComponent({ owner, onUploaded, onUploadingChange }) {
   const [file, setFile] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [feedback, setFeedback] = useState({ message: '', isError: false });
@@ -16,6 +16,7 @@ export default function UploadComponent({ owner, onUploaded }) {
     }
 
     setIsUploading(true);
+    onUploadingChange(true);
     setFeedback({ message: '', isError: false });
 
     try {
@@ -23,11 +24,12 @@ export default function UploadComponent({ owner, onUploaded }) {
       setFile(null);
       form.reset();
       setFeedback({ message: 'Documento enviado com sucesso.', isError: false });
-      onUploaded(document);
+      onUploaded(document, owner);
     } catch (error) {
       setFeedback({ message: error.message, isError: true });
     } finally {
       setIsUploading(false);
+      onUploadingChange(false);
     }
   }
 
