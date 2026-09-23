@@ -1,7 +1,14 @@
 const API_PREFIX = '/api';
 
 async function request(path, options = {}) {
-  const response = await fetch(`${API_PREFIX}${path}`, options);
+  let response;
+
+  try {
+    response = await fetch(`${API_PREFIX}${path}`, options);
+  } catch (error) {
+    if (error.name === 'AbortError') throw error;
+    throw new Error('Não foi possível conectar ao servidor.');
+  }
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
@@ -11,11 +18,28 @@ async function request(path, options = {}) {
   return response;
 }
 
+async function readJson(response) {
+  try {
+    return await response.json();
+  } catch {
+    throw new Error('O servidor retornou uma resposta inválida.');
+  }
+}
+
+function isDocument(document) {
+  return document
+    && typeof document.id === 'string'
+    && typeof document.originalName === 'string'
+    && Number.isFinite(document.size)
+    && typeof document.uploadedAt === 'string'
+    && typeof document.owner === 'string';
+}
+
 function ownerHeaders(owner) {
   return { 'X-User-Id': owner };
 }
 
-export async function uploadDocument(file, owner) {
+export async function uploadDocument(file, owner, { signal } = {}) {
   const formData = new FormData();
   formData.append('file', file);
 
@@ -23,21 +47,33 @@ export async function uploadDocument(file, owner) {
     method: 'POST',
     headers: ownerHeaders(owner),
     body: formData,
+    signal,
   });
+  const document = await readJson(response);
 
-  return response.json();
+  if (!isDocument(document)) {
+    throw new Error('O servidor retornou metadados de documento inválidos.');
+  }
+
+  return document;
 }
 
-export async function listDocuments(owner) {
+export async function listDocuments(owner, { signal } = {}) {
   const response = await request('/documents', {
     headers: ownerHeaders(owner),
+    signal,
   });
-  const body = await response.json();
+  const body = await readJson(response);
+
+  if (!Array.isArray(body.documents) || !body.documents.every(isDocument)) {
+    throw new Error('O servidor retornou uma lista de documentos inválida.');
+  }
+
   return body.documents;
 }
 
 export async function downloadDocument(document, owner) {
-  const response = await request(`/documents/${document.id}/download`, {
+  const response = await request(`/documents/${encodeURIComponent(document.id)}/download`, {
     headers: ownerHeaders(owner),
   });
   const blob = await response.blob();
@@ -46,6 +82,9 @@ export async function downloadDocument(document, owner) {
 
   link.href = url;
   link.download = document.originalName;
+  link.hidden = true;
+  window.document.body.append(link);
   link.click();
-  URL.revokeObjectURL(url);
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
 }

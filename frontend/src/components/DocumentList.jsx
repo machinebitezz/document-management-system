@@ -1,16 +1,20 @@
 import DownloadButton from './DownloadButton.jsx';
 
 function formatFileSize(size) {
+  if (!Number.isFinite(size) || size < 0) return 'Tamanho indisponível';
   if (size < 1024) return `${size} B`;
   if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function formatDate(date) {
+  const parsedDate = new Date(date);
+  if (Number.isNaN(parsedDate.getTime())) return 'Data indisponível';
+
   return new Intl.DateTimeFormat('pt-BR', {
     dateStyle: 'short',
     timeStyle: 'short',
-  }).format(new Date(date));
+  }).format(parsedDate);
 }
 
 export default function DocumentList({ documents, owner, isLoading, error }) {
@@ -27,7 +31,10 @@ export default function DocumentList({ documents, owner, isLoading, error }) {
           <p className="section-kicker">Acervo</p>
           <h2 id="documents-title">Documentos</h2>
         </div>
-        <span className="document-count" aria-label={countLabel}>{documents.length}</span>
+        <span className="document-count">
+          <span aria-hidden="true">{documents.length}</span>
+          <span className="visually-hidden">{countLabel}</span>
+        </span>
       </div>
 
       {isLoading && <p className="empty-state" role="status">Carregando documentos...</p>}
