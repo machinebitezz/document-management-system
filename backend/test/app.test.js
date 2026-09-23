@@ -50,20 +50,46 @@ async function upload(baseUrl, owner, content = 'conteúdo', field = 'file') {
   });
 }
 
-test('realiza upload, lista e download com isolamento por usuário', async () => {
-  await withTestServer({}, async ({ baseUrl }) => {
+test('POST /upload salva o arquivo e retorna metadados públicos', async () => {
+  await withTestServer({}, async ({ baseUrl, storageDirectory }) => {
     const uploadResponse = await upload(baseUrl, 'user-1');
     assert.equal(uploadResponse.status, 201);
     const document = await uploadResponse.json();
+
     assert.equal(document.owner, 'user-1');
+    assert.equal(document.originalName, 'arquivo.txt');
+    assert.equal(document.size, Buffer.byteLength('conteúdo'));
+    assert.match(document.uploadedAt, /^\d{4}-\d{2}-\d{2}T/);
     assert.equal(document.storedName, undefined);
+    assert.equal((await fs.readdir(storageDirectory)).length, 1);
+  });
+});
+
+test('GET /documents lista apenas os documentos do usuário autenticado', async () => {
+  await withTestServer({}, async ({ baseUrl }) => {
+    const firstUpload = await upload(baseUrl, 'user-1', 'primeiro');
+    const secondUpload = await upload(baseUrl, 'user-2', 'segundo');
+    assert.equal(firstUpload.status, 201);
+    assert.equal(secondUpload.status, 201);
+
+    const firstDocument = await firstUpload.json();
 
     const listResponse = await fetch(`${baseUrl}/documents`, {
       headers: { 'X-User-Id': 'user-1' },
     });
+    assert.equal(listResponse.status, 200);
     const { documents } = await listResponse.json();
     assert.equal(documents.length, 1);
-    assert.equal(documents[0].id, document.id);
+    assert.equal(documents[0].id, firstDocument.id);
+    assert.equal(documents[0].owner, 'user-1');
+  });
+});
+
+test('GET /documents/:id/download baixa o arquivo do usuário e bloqueia acesso indevido', async () => {
+  await withTestServer({}, async ({ baseUrl }) => {
+    const uploadResponse = await upload(baseUrl, 'user-1');
+    assert.equal(uploadResponse.status, 201);
+    const document = await uploadResponse.json();
 
     const forbiddenResponse = await fetch(`${baseUrl}/documents/${document.id}/download`, {
       headers: { 'X-User-Id': 'user-2' },
@@ -74,6 +100,7 @@ test('realiza upload, lista e download com isolamento por usuário', async () =>
       headers: { 'X-User-Id': 'user-1' },
     });
     assert.equal(downloadResponse.status, 200);
+    assert.match(downloadResponse.headers.get('content-disposition'), /arquivo\.txt/);
     assert.equal(await downloadResponse.text(), 'conteúdo');
   });
 });
