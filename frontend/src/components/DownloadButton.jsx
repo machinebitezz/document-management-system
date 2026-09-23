@@ -3,16 +3,21 @@ import { downloadDocument } from '../services/documentApi.js';
 
 export default function DownloadButton({ document, owner }) {
   const [isDownloading, setIsDownloading] = useState(false);
-  const [error, setError] = useState('');
+  const [feedback, setFeedback] = useState({ message: '', isError: false });
+  const feedbackId = `download-feedback-${document.id}`;
 
   async function handleDownload() {
     setIsDownloading(true);
-    setError('');
+    setFeedback({ message: '', isError: false });
 
     try {
       await downloadDocument(document, owner);
+      setFeedback({
+        message: `Download de ${document.originalName} iniciado.`,
+        isError: false,
+      });
     } catch (downloadError) {
-      setError(downloadError.message);
+      setFeedback({ message: downloadError.message, isError: true });
     } finally {
       setIsDownloading(false);
     }
@@ -25,11 +30,20 @@ export default function DownloadButton({ document, owner }) {
         type="button"
         onClick={handleDownload}
         disabled={isDownloading}
-        aria-label={`Baixar ${document.originalName}`}
+        aria-label={`${isDownloading ? 'Baixando' : 'Baixar'} ${document.originalName}`}
+        aria-describedby={feedback.message ? feedbackId : undefined}
       >
         {isDownloading ? 'Baixando...' : 'Baixar'}
       </button>
-      {error && <span className="inline-error" role="alert">{error}</span>}
+      {feedback.message && (
+        <span
+          id={feedbackId}
+          className={feedback.isError ? 'inline-error' : 'visually-hidden'}
+          role={feedback.isError ? 'alert' : 'status'}
+        >
+          {feedback.message}
+        </span>
+      )}
     </div>
   );
 }

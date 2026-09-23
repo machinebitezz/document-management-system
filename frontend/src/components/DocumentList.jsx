@@ -14,18 +14,29 @@ function formatDate(date) {
 }
 
 export default function DocumentList({ documents, owner, isLoading, error }) {
+  const countLabel = `${documents.length} ${documents.length === 1 ? 'documento' : 'documentos'}`;
+
   return (
-    <section className="documents-section" aria-labelledby="documents-title">
+    <section
+      className="documents-section"
+      aria-labelledby="documents-title"
+      aria-busy={isLoading}
+    >
       <div className="section-heading">
         <div>
           <p className="section-kicker">Acervo</p>
           <h2 id="documents-title">Documentos</h2>
         </div>
-        <span className="document-count">{documents.length}</span>
+        <span className="document-count" aria-label={countLabel}>{documents.length}</span>
       </div>
 
       {isLoading && <p className="empty-state" role="status">Carregando documentos...</p>}
       {error && <p className="empty-state error-state" role="alert">{error}</p>}
+      {!isLoading && !error && (
+        <p className="visually-hidden" role="status" aria-live="polite">
+          {`${countLabel} encontrado${documents.length === 1 ? '' : 's'}.`}
+        </p>
+      )}
       {!isLoading && !error && documents.length === 0 && (
         <p className="empty-state">Nenhum documento enviado.</p>
       )}
